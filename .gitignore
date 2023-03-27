@@ -1,3 +1,4 @@
 tyler
 compile_commands.json
 .cache
+debug*
