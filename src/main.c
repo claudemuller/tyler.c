@@ -9,7 +9,7 @@ int main(int argc, char* argv[]) {
 
 	init(&engine, debug);
 	run(&engine);
-	cleanup();
+	cleanup(&engine);
 
 	return 0;
 }

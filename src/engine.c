@@ -13,13 +13,6 @@ const int TILE_SIZE = 32;
 const int TILE_COLS = 60;
 const int TILE_ROWS = 33;
 
-int window_width = TILE_SIZE*TILE_COLS;
-int window_height = TILE_SIZE*TILE_ROWS;
-int tilemap_width = 0;
-int tilemap_height = 0;
-int map_cols = 0;
-int map_rows = 0;
-
 int millisecs_previous_frame = 0;
 
 bool mouse_down;
@@ -42,15 +35,15 @@ on_mouse_down(Engine *engine, SDL_Event e)
     printf("clicked at: %d:%d\n", e.motion.x, e.motion.y);
 
     if (
-	e.motion.x > 0 && e.motion.x < tilemap_width
-	&& e.motion.y > window_height-tilemap_height && e.motion.y < window_height
+	e.motion.x > 0 && e.motion.x < engine->tilemap.width
+	&& e.motion.y > engine->window_height-engine->tilemap.height && e.motion.y < engine->window_height
     ) {
 	log_info("clicked on tilemap");
 
 	int x = e.motion.x;
-	int y = e.motion.y-(window_height-tilemap_height);
+	int y = e.motion.y-(engine->window_height-engine->tilemap.height);
 
-	current_tile = (int)(x/TILE_SIZE)+(y/TILE_SIZE*map_cols);
+	current_tile = (int)(x/TILE_SIZE)+(y/TILE_SIZE*engine->tilemap.cols);
 
 	return;
     }
@@ -80,12 +73,14 @@ init(Engine *engine, const bool debug)
     // window_width = 1280; //displayMode.w;
     // window_height = 720; //displayMode.h;
 
+    engine->window_width = TILE_SIZE*TILE_COLS;
+    engine->window_height = TILE_SIZE*TILE_ROWS;
     engine->window = SDL_CreateWindow(
 	    NULL,
 	    SDL_WINDOWPOS_CENTERED,
 	    SDL_WINDOWPOS_CENTERED,
-	    window_width,
-	    window_height,
+	    engine->window_width,
+	    engine->window_height,
 	    SDL_WINDOW_BORDERLESS
 	);
     if (engine->window == NULL) {
@@ -101,19 +96,14 @@ init(Engine *engine, const bool debug)
 
     engine->is_running = true;
 
-    // IMGUI_CHECKVERSION();
-    // ImGui::CreateContext();
-    // ImGuiIO& io = ImGui::GetIO(); (void)io;
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    // ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-    // ImGui_ImplSDLRenderer_Init(renderer);
-
     log_info("engine successfully initialised");
 }
 
 void
-setup()
+setup(Engine *engine)
 {
+    engine->tilemap = (Tilemap){0, 0, 0, 0};
+
     for (size_t y = 0; y < TILE_ROWS; y++) {
 	for (size_t x = 0; x < TILE_COLS; x++) {
 	    tile_grid[y][x] = -1;
@@ -124,7 +114,7 @@ setup()
 void
 run(Engine *engine)
 {
-    setup();
+    setup(engine);
 
     while (engine->is_running) {
 	process_input(engine);
@@ -138,16 +128,6 @@ process_input(Engine *engine)
 {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-	// ImGui_ImplSDL2_ProcessEvent(&event);
-	// ImGuiIO &io = ImGui::GetIO();
-
-	// int mouseX, mouseY;
-	// const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
-
-	// io.MousePos = ImVec2(mouseX, mouseY);
-	// io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
-	// io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
-
 	switch (event.type) {
 	    case SDL_QUIT:
 		engine->is_running = false;
@@ -182,9 +162,9 @@ update(Engine *engine)
 	on_mouse_down(engine, mouse_event);
 }
 
-SDL_Rect get_tile(size_t n)
+SDL_Rect get_tile(Engine *engine, size_t n)
 {
-    int map_cols = (int)(tilemap_width/TILE_SIZE);
+    int map_cols = (int)(engine->tilemap.width/TILE_SIZE);
     return (SDL_Rect){
 	.x = (n%map_cols)*TILE_SIZE,
 	.y = (int)(n/map_cols)*TILE_SIZE,
@@ -203,21 +183,21 @@ render(Engine *engine)
     SDL_Texture *texture = SDL_CreateTextureFromSurface(engine->renderer, surface);
     SDL_FreeSurface(surface);
 
-    SDL_QueryTexture(texture, NULL, NULL, &tilemap_width, &tilemap_height);
+    SDL_QueryTexture(texture, NULL, NULL, &engine->tilemap.width, &engine->tilemap.height);
     SDL_Rect tilemap_rect = {
 	.x = 0,
-	.y = window_height-tilemap_height,
-	.w = tilemap_width,
-	.h = tilemap_height
+	.y = engine->window_height-engine->tilemap.height,
+	.w = engine->tilemap.width,
+	.h = engine->tilemap.height
     };
-    map_cols = (int)(tilemap_width/TILE_SIZE);
-    map_rows = (int)(tilemap_height/TILE_SIZE);
+    engine->tilemap.cols = (int)(engine->tilemap.width/TILE_SIZE);
+    engine->tilemap.rows = (int)(engine->tilemap.height/TILE_SIZE);
 
     SDL_RenderCopy(engine->renderer, texture, NULL, &tilemap_rect);
 
     SDL_Rect dst_rect = {0, 0, TILE_SIZE, TILE_SIZE};
     SDL_Rect src_rect = {0, 0, TILE_SIZE, TILE_SIZE};
-    for (size_t y = 0; y < TILE_ROWS-map_rows; y++) {
+    for (size_t y = 0; y < TILE_ROWS-engine->tilemap.rows; y++) {
 	for (size_t x = 0; x < TILE_COLS; x++) {
 	    int tile = tile_grid[y][x];
 	    dst_rect.x = x*TILE_SIZE;
@@ -229,16 +209,16 @@ render(Engine *engine)
 		continue;
 	    }
 
-	    src_rect = get_tile(tile);
+	    src_rect = get_tile(engine, tile);
 
 	    SDL_RenderCopy(engine->renderer, texture, &src_rect, &dst_rect);
 	}
     }
 
-    for (size_t y = 0; y < map_rows; y++) {
-	for (size_t x = 0; x < map_cols; x++) {
+    for (size_t y = 0; y < engine->tilemap.rows; y++) {
+	for (size_t x = 0; x < engine->tilemap.cols; x++) {
 	    dst_rect.x = x*TILE_SIZE;
-	    dst_rect.y = (y*TILE_SIZE)+(window_height-tilemap_height);
+	    dst_rect.y = (y*TILE_SIZE)+(engine->window_height-engine->tilemap.height);
 	    SDL_SetRenderDrawColor(engine->renderer, 200, 200, 200, 255);
 	    SDL_RenderDrawRect(engine->renderer, &dst_rect);
 	}
@@ -250,8 +230,10 @@ render(Engine *engine)
 }
 
 void
-cleanup(void)
+cleanup(Engine *engine)
 {
     log_info("let's clean up :P");
+    SDL_DestroyRenderer(engine->renderer);
+    SDL_DestroyWindow(engine->window);
     SDL_Quit();
 }

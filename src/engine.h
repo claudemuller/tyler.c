@@ -5,17 +5,29 @@
 #include <SDL2/SDL.h>
 
 typedef struct {
+	int width;
+	int height;
+	int cols;
+	int rows;
+} Tilemap;
+
+typedef struct {
+	Tilemap tilemap;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
+
+	int window_width;
+	int window_height;
+
 	bool is_running;
 } Engine;
 
 void init(Engine *engine, const bool debug);
-void setup(void);
+void setup(Engine *engine);
 void run(Engine *engine);
 void process_input(Engine *engine);
 void update(Engine *engine);
 void render(Engine *engine);
-void cleanup(void);
+void cleanup(Engine *engine);
 
 #endif // ENGINE_H
