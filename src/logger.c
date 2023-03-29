@@ -1,28 +1,28 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
 #include "logger.h"
 
-const bool LOG = false;
+const bool LOG = true;
 
-char
-*log_info(char *msg)
+void
+log_info(char *msg)
 {
-    // printf("ℹ️ %s\n", msg);
-    return msg;
+    _log(_build_msg("ℹ️ ", msg));
 }
 
-char
-*log_warn(char *msg)
+void
+log_warn(char *msg)
 {
-    // printf("⚠️ %s\n", msg);
-    return msg;
+    _log(_build_msg("⚠️ ", msg));
 }
 
-char
-*log_err(char *msg, const char *err)
+void
+log_err(char *msg, const char *err)
 {
-    // printf("☠️ %s: %s\n", msg, err);
-    return msg;
+    char *str = _build_msg("☠️ ", msg);
+    _log(_build_msg(str, err));
 }
 
 void
@@ -30,5 +30,18 @@ _log(const char *msg)
 {
     if (LOG)
 	printf("%s\n", msg);
+}
+
+char
+*_build_msg(const char *emoji, const char *msg)
+{
+    size_t emoji_len = strlen(emoji);
+    size_t str_len = strlen(msg);
+    char *log_msg = (char*)malloc(emoji_len+str_len+1);
+
+    strcpy(log_msg, emoji);
+    strcat(log_msg, msg);
+
+    return log_msg;
 }
 

@@ -10,6 +10,7 @@
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_IMPLEMENTATION
 #define NK_SDL_RENDERER_IMPLEMENTATION
+
 #include "engine.h"
 #include "../libs/nuklear/nuklear_sdl_renderer.h"
 #include "eventbus.h"
@@ -25,43 +26,14 @@ const int TILE_SIZE = 32;
 const int TILE_COLS = 60;
 const int TILE_ROWS = 33;
 
-int millisecs_previous_frame = 0;
-
 bool mouse_down;
 SDL_Event mouse_event;
 eventbus_t eventbus;
 
+
 // TODO: we don't use all the cells?
 int tile_grid[TILE_ROWS][TILE_COLS];
 size_t current_tile = 0;
-
-void
-save_tile_to_render(const int x, const int y) {
-    log_info("placing tile");
-    tile_grid[(int)(y/TILE_SIZE)][(int)(x/TILE_SIZE)] = current_tile;
-}
-
-void
-on_mouse_down(Engine *engine, SDL_Event e)
-{
-    printf("clicked at: %d:%d\n", e.motion.x, e.motion.y);
-
-    if (
-	e.motion.x > 0 && e.motion.x < engine->tilemap.width
-	&& e.motion.y > engine->window_height-engine->tilemap.height && e.motion.y < engine->window_height
-    ) {
-	log_info("clicked on tilemap");
-
-	int x = e.motion.x;
-	int y = e.motion.y-(engine->window_height-engine->tilemap.height);
-
-	current_tile = (int)(x/TILE_SIZE)+(y/TILE_SIZE*engine->tilemap.cols);
-
-	return;
-    }
-
-    save_tile_to_render(e.motion.x, e.motion.y);
-}
 
 void
 init(Engine *engine, const bool debug)
@@ -160,7 +132,12 @@ init(Engine *engine, const bool debug)
 void
 setup(Engine *engine)
 {
-    engine->tilemap = (Tilemap){0, 0, 0, 0};
+    engine->tilemap = (Tilemap){
+	.cols = 0,
+	.rows = 0,
+	.width = 0,
+	.height = 0,
+    };
 
     for (size_t y = 0; y < TILE_ROWS; y++) {
 	for (size_t x = 0; x < TILE_COLS; x++) {
@@ -180,6 +157,7 @@ run(Engine *engine)
 	render(engine);
     }
 }
+
 NK_API int nk_consume_keyboard(struct nk_context *ctx)
 {
     struct nk_window *iter;
@@ -208,6 +186,7 @@ NK_API int nk_consume_mouse(struct nk_context *ctx)
     else
         return nk_item_is_any_active(ctx);
 }
+
 void
 process_input(Engine *engine)
 {
@@ -228,8 +207,9 @@ process_input(Engine *engine)
 
 	if (nk_consume_mouse(engine->ctx) == 0){
 	    if (event.type == SDL_MOUSEBUTTONDOWN) {
-		mouse_down = true;
-		mouse_event = event;
+		// mouse_down = true;
+		// mouse_event = event;
+		on_mouse_down(engine, event);
 	    }
 	    if (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON_LMASK))
 		printf("camera moving\n");
@@ -241,14 +221,14 @@ process_input(Engine *engine)
 void
 update(Engine *engine)
 {
-    int time_to_wait = MILLISECS_PER_FRAME - (SDL_GetTicks() - millisecs_previous_frame);
+    int time_to_wait = MILLISECS_PER_FRAME - (SDL_GetTicks() - engine->millisecs_previous_frame);
     if (time_to_wait > 0 && time_to_wait <= MILLISECS_PER_FRAME) SDL_Delay(time_to_wait);
 
-    double delta_time = (SDL_GetTicks() - millisecs_previous_frame) / 1000.0;
-    millisecs_previous_frame = SDL_GetTicks();
+    double delta_time = (SDL_GetTicks() - engine->millisecs_previous_frame) / 1000.0;
+    engine->millisecs_previous_frame = SDL_GetTicks();
 
-    if (mouse_down)
-	on_mouse_down(engine, mouse_event);
+ //    if (mouse_down)
+	// on_mouse_down(engine, mouse_event);
 }
 
 SDL_Rect get_tile(Engine *engine, size_t n)
@@ -268,90 +248,8 @@ render(Engine *engine)
     SDL_SetRenderDrawColor(engine->renderer, 21, 21, 21, 255);
     SDL_RenderClear(engine->renderer);
 
-    SDL_Surface *surface = IMG_Load("./assets/tilemaps/tilemap.png");
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(engine->renderer, surface);
-    SDL_FreeSurface(surface);
-
-    SDL_QueryTexture(texture, NULL, NULL, &engine->tilemap.width, &engine->tilemap.height);
-    SDL_Rect tilemap_rect = {
-	.x = 0,
-	.y = engine->window_height-engine->tilemap.height,
-	.w = engine->tilemap.width,
-	.h = engine->tilemap.height
-    };
-    engine->tilemap.cols = (int)(engine->tilemap.width/TILE_SIZE);
-    engine->tilemap.rows = (int)(engine->tilemap.height/TILE_SIZE);
-
-    SDL_RenderCopy(engine->renderer, texture, NULL, &tilemap_rect);
-
-    SDL_Rect dst_rect = {0, 0, TILE_SIZE, TILE_SIZE};
-    SDL_Rect src_rect = {0, 0, TILE_SIZE, TILE_SIZE};
-    for (size_t y = 0; y < TILE_ROWS-engine->tilemap.rows; y++) {
-	for (size_t x = 0; x < TILE_COLS; x++) {
-	    int tile = tile_grid[y][x];
-	    dst_rect.x = x*TILE_SIZE;
-	    dst_rect.y = y*TILE_SIZE;
-
-	    if (tile == -1) {
-		SDL_SetRenderDrawColor(engine->renderer, 11, 11, 11, 255);
-		SDL_RenderDrawRect(engine->renderer, &dst_rect);
-		continue;
-	    }
-
-	    src_rect = get_tile(engine, tile);
-
-	    SDL_RenderCopy(engine->renderer, texture, &src_rect, &dst_rect);
-	}
-    }
-
-    for (size_t y = 0; y < engine->tilemap.rows; y++) {
-	for (size_t x = 0; x < engine->tilemap.cols; x++) {
-	    dst_rect.x = x*TILE_SIZE;
-	    dst_rect.y = (y*TILE_SIZE)+(engine->window_height-engine->tilemap.height);
-	    SDL_SetRenderDrawColor(engine->renderer, 200, 200, 200, 255);
-	    SDL_RenderDrawRect(engine->renderer, &dst_rect);
-	}
-    }
-    SDL_DestroyTexture(texture);
-
-    /* GUI */
-    struct nk_colorf bg;
-    bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
-
-    if (nk_begin(engine->ctx, "Demo", nk_rect(50, 50, 230, 250),
-		 NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
-		 NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
-    {
-	enum {EASY, HARD};
-	static int op = EASY;
-	static int property = 20;
-
-	nk_layout_row_static(engine->ctx, 30, 80, 1);
-	if (nk_button_label(engine->ctx, "button"))
-	    fprintf(stdout, "button pressed\n");
-	nk_layout_row_dynamic(engine->ctx, 30, 2);
-	if (nk_option_label(engine->ctx, "easy", op == EASY)) op = EASY;
-	if (nk_option_label(engine->ctx, "hard", op == HARD)) op = HARD;
-	nk_layout_row_dynamic(engine->ctx, 25, 1);
-	nk_property_int(engine->ctx, "Compression:", 0, &property, 100, 10, 1);
-
-	nk_layout_row_dynamic(engine->ctx, 20, 1);
-	nk_label(engine->ctx, "background:", NK_TEXT_LEFT);
-	nk_layout_row_dynamic(engine->ctx, 25, 1);
-	if (nk_combo_begin_color(engine->ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(engine->ctx),400))) {
-	    nk_layout_row_dynamic(engine->ctx, 120, 1);
-	    bg = nk_color_picker(engine->ctx, bg, NK_RGBA);
-	    nk_layout_row_dynamic(engine->ctx, 25, 1);
-	    bg.r = nk_propertyf(engine->ctx, "#R:", 0, bg.r, 1.0f, 0.01f,0.005f);
-	    bg.g = nk_propertyf(engine->ctx, "#G:", 0, bg.g, 1.0f, 0.01f,0.005f);
-	    bg.b = nk_propertyf(engine->ctx, "#B:", 0, bg.b, 1.0f, 0.01f,0.005f);
-	    bg.a = nk_propertyf(engine->ctx, "#A:", 0, bg.a, 1.0f, 0.01f,0.005f);
-	    nk_combo_end(engine->ctx);
-	}
-    }
-    nk_end(engine->ctx);
-
-    nk_sdl_render(NK_ANTI_ALIASING_ON);
+    draw_tile_grid(engine);
+    draw_ui(engine);
 
     SDL_RenderPresent(engine->renderer);
 }
@@ -364,4 +262,130 @@ cleanup(Engine *engine)
     SDL_DestroyRenderer(engine->renderer);
     SDL_DestroyWindow(engine->window);
     SDL_Quit();
+}
+
+void
+draw_tile_grid(Engine *engine)
+{
+    SDL_Rect dst_rect = {0, 0, TILE_SIZE, TILE_SIZE};
+
+    if (strlen(engine->tilemap.filename) > 0) {
+    // strcpy(engine->tilemap.filename, "./assets/tilemaps/tilemap.png");
+	SDL_Surface *surface = IMG_Load(engine->tilemap.filename);
+	SDL_Texture *texture = SDL_CreateTextureFromSurface(engine->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	SDL_QueryTexture(texture, NULL, NULL, &engine->tilemap.width, &engine->tilemap.height);
+	SDL_Rect tilemap_rect = {
+	    .x = 0,
+	    .y = engine->window_height-engine->tilemap.height,
+	    .w = engine->tilemap.width,
+	    .h = engine->tilemap.height
+	};
+	engine->tilemap.cols = (int)(engine->tilemap.width/TILE_SIZE);
+	engine->tilemap.rows = (int)(engine->tilemap.height/TILE_SIZE);
+
+	SDL_RenderCopy(engine->renderer, texture, NULL, &tilemap_rect);
+
+	SDL_Rect src_rect = {0, 0, TILE_SIZE, TILE_SIZE};
+	for (size_t y = 0; y < TILE_ROWS; y++) {
+	    for (size_t x = 0; x < TILE_COLS; x++) {
+		int tile = tile_grid[y][x];
+		dst_rect.x = x*TILE_SIZE;
+		dst_rect.y = y*TILE_SIZE;
+
+		if (tile == -1) {
+		    SDL_SetRenderDrawColor(engine->renderer, 11, 11, 11, 255);
+		    SDL_RenderDrawRect(engine->renderer, &dst_rect);
+		    continue;
+		}
+
+		src_rect = get_tile(engine, tile);
+
+		SDL_RenderCopy(engine->renderer, texture, &src_rect, &dst_rect);
+	    }
+	}
+
+	SDL_DestroyTexture(texture);
+    }
+
+    for (size_t y = 0; y < TILE_ROWS; y++) {
+	for (size_t x = 0; x < TILE_COLS; x++) {
+	    int tile = tile_grid[y][x];
+	    dst_rect.x = x*TILE_SIZE;
+	    dst_rect.y = y*TILE_SIZE;
+
+	    if (tile == -1) {
+		SDL_SetRenderDrawColor(engine->renderer, 11, 11, 11, 255);
+		SDL_RenderDrawRect(engine->renderer, &dst_rect);
+		continue;
+	    }
+	}
+    }
+
+    for (size_t y = 0; y < engine->tilemap.rows; y++) {
+	for (size_t x = 0; x < engine->tilemap.cols; x++) {
+	    dst_rect.x = x*TILE_SIZE;
+	    dst_rect.y = (y*TILE_SIZE)+(engine->window_height-engine->tilemap.height);
+	    SDL_SetRenderDrawColor(engine->renderer, 200, 200, 200, 255);
+	    SDL_RenderDrawRect(engine->renderer, &dst_rect);
+	}
+    }
+}
+
+void
+draw_ui(Engine *engine)
+{
+    /* GUI */
+    struct nk_colorf bg;
+    bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
+
+    int win_w = 230;
+    if (nk_begin(engine->ctx, "Demo", nk_rect(engine->window_width-win_w-20, 20, win_w, 250),
+		 NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+		 NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
+    {
+	int row_h = 30;
+	static char filename[256];
+	static int filename_len;
+
+	nk_layout_row_dynamic(engine->ctx, row_h, 1);
+	nk_edit_string(engine->ctx, NK_EDIT_SIMPLE, filename, &filename_len, 256, nk_filter_default);
+	nk_layout_row_dynamic(engine->ctx, row_h, 1);
+	if (nk_button_label(engine->ctx, "Load Tilemap")) {
+	    strncpy(engine->tilemap.filename, filename, 256);
+	    log_info(strcat("loading tilemap: ", filename));
+	}
+
+    }
+    nk_end(engine->ctx);
+
+    nk_sdl_render(NK_ANTI_ALIASING_ON);
+}
+
+void
+save_tile_to_render(const int x, const int y)
+{
+    log_info("placing tile");
+    tile_grid[(int)(y/TILE_SIZE)][(int)(x/TILE_SIZE)] = current_tile;
+}
+
+void
+on_mouse_down(Engine *engine, SDL_Event e)
+{
+    if (
+	e.motion.x > 0 && e.motion.x < engine->tilemap.width
+	&& e.motion.y > engine->window_height-engine->tilemap.height && e.motion.y < engine->window_height
+    ) {
+	log_info("clicked on tilemap");
+
+	int x = e.motion.x;
+	int y = e.motion.y-(engine->window_height-engine->tilemap.height);
+
+	current_tile = (int)(x/TILE_SIZE)+(y/TILE_SIZE*engine->tilemap.cols);
+
+	return;
+    }
+
+    save_tile_to_render(e.motion.x, e.motion.y);
 }
