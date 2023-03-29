@@ -1,5 +1,17 @@
 #include <math.h>
 #include <SDL2/SDL_image.h>
+
+#define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_STANDARD_VARARGS
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+#define NK_INCLUDE_FONT_BAKING
+#define NK_INCLUDE_DEFAULT_FONT
+#define NK_IMPLEMENTATION
+#define NK_SDL_RENDERER_IMPLEMENTATION
+#include "../libs/nuklear/nuklear.h"
+#include "../libs/nuklear/nuklear_sdl_renderer.h"
+
 #include "engine.h"
 #include "eventbus.h"
 #include "logger.h"
@@ -18,6 +30,9 @@ int millisecs_previous_frame = 0;
 bool mouse_down;
 SDL_Event mouse_event;
 eventbus_t eventbus;
+
+struct nk_context *ctx;
+struct nk_colorf bg;
 
 // TODO: we don't use all the cells?
 int tile_grid[TILE_ROWS][TILE_COLS];
@@ -73,6 +88,7 @@ init(Engine *engine, const bool debug)
     // window_width = 1280; //displayMode.w;
     // window_height = 720; //displayMode.h;
 
+
     engine->window_width = TILE_SIZE*TILE_COLS;
     engine->window_height = TILE_SIZE*TILE_ROWS;
     engine->window = SDL_CreateWindow(
@@ -93,6 +109,50 @@ init(Engine *engine, const bool debug)
 	log_err("error creating renderer");
 	return;
     }
+
+    float font_scale = 1;
+
+    /* scale the renderer output for High-DPI displays */
+    {
+        int render_w, render_h;
+        int window_w, window_h;
+        float scale_x, scale_y;
+        SDL_GetRendererOutputSize(engine->renderer, &render_w, &render_h);
+        SDL_GetWindowSize(engine->window, &window_w, &window_h);
+        scale_x = (float)(render_w) / (float)(window_w);
+        scale_y = (float)(render_h) / (float)(window_h);
+        SDL_RenderSetScale(engine->renderer, scale_x, scale_y);
+        font_scale = scale_y;
+    }
+
+    /* GUI */
+    ctx = nk_sdl_init(engine->window,engine->renderer);
+    /* Load Fonts: if none of these are loaded a default font will be used  */
+    /* Load Cursor: if you uncomment cursor loading please hide the cursor */
+    {
+        struct nk_font_atlas *atlas;
+        struct nk_font_config config = nk_font_config(0);
+        struct nk_font *font;
+
+        /* set up the font atlas and add desired font; note that font sizes are
+         * multiplied by font_scale to produce better results at higher DPIs */
+        nk_sdl_font_stash_begin(&atlas);
+        font = nk_font_atlas_add_default(atlas, 13 * font_scale, &config);
+        /*font = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14 * font_scale, &config);*/
+        /*font = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 16 * font_scale, &config);*/
+        /*font = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13 * font_scale, &config);*/
+        /*font = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12 * font_scale, &config);*/
+        /*font = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyTiny.ttf", 10 * font_scale, &config);*/
+        /*font = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13 * font_scale, &config);*/
+        nk_sdl_font_stash_end();
+
+        /* this hack makes the font appear to be scaled down to the desired
+         * size and is only necessary when font_scale > 1 */
+        font->handle.height /= font_scale;
+        /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
+        nk_style_set_font(ctx, &font->handle);
+    }
+    // set_style(ctx, THEME_DARK);
 
     engine->is_running = true;
 
@@ -146,7 +206,9 @@ process_input(Engine *engine)
 		break;
 	    break;
 	}
+	nk_sdl_handle_event(&event);
     }
+    nk_input_end(ctx);
 }
 
 void
@@ -166,7 +228,7 @@ SDL_Rect get_tile(Engine *engine, size_t n)
 {
     int map_cols = (int)(engine->tilemap.width/TILE_SIZE);
     return (SDL_Rect){
-	.x = (n%map_cols)*TILE_SIZE,
+	.x = (int)(n%map_cols)*TILE_SIZE,
 	.y = (int)(n/map_cols)*TILE_SIZE,
 	.w = TILE_SIZE,
 	.h = TILE_SIZE
@@ -224,6 +286,43 @@ render(Engine *engine)
 	}
     }
 
+    nk_input_begin(ctx);
+        /* GUI */
+        if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
+            NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+            NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
+        {
+            enum {EASY, HARD};
+            static int op = EASY;
+            static int property = 20;
+
+            nk_layout_row_static(ctx, 30, 80, 1);
+            if (nk_button_label(ctx, "button"))
+                fprintf(stdout, "button pressed\n");
+            nk_layout_row_dynamic(ctx, 30, 2);
+            if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
+            if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
+            nk_layout_row_dynamic(ctx, 25, 1);
+            nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
+
+            nk_layout_row_dynamic(ctx, 20, 1);
+            nk_label(ctx, "background:", NK_TEXT_LEFT);
+            nk_layout_row_dynamic(ctx, 25, 1);
+            if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx),400))) {
+                nk_layout_row_dynamic(ctx, 120, 1);
+                bg = nk_color_picker(ctx, bg, NK_RGBA);
+                nk_layout_row_dynamic(ctx, 25, 1);
+                bg.r = nk_propertyf(ctx, "#R:", 0, bg.r, 1.0f, 0.01f,0.005f);
+                bg.g = nk_propertyf(ctx, "#G:", 0, bg.g, 1.0f, 0.01f,0.005f);
+                bg.b = nk_propertyf(ctx, "#B:", 0, bg.b, 1.0f, 0.01f,0.005f);
+                bg.a = nk_propertyf(ctx, "#A:", 0, bg.a, 1.0f, 0.01f,0.005f);
+                nk_combo_end(ctx);
+            }
+        }
+        nk_end(ctx);
+
+        nk_sdl_render(NK_ANTI_ALIASING_ON);
+
     SDL_DestroyTexture(texture);
 
     SDL_RenderPresent(engine->renderer);
@@ -233,6 +332,7 @@ void
 cleanup(Engine *engine)
 {
     log_info("let's clean up :P");
+    nk_sdl_shutdown();
     SDL_DestroyRenderer(engine->renderer);
     SDL_DestroyWindow(engine->window);
     SDL_Quit();

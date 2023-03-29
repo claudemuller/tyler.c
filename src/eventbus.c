@@ -12,7 +12,7 @@ init_eventbus()
 	// log_err("failed to malloc subscribers space");
  //    }
     return (eventbus_t){
-	.subscribers = malloc(16)
+	// .subscribers = malloc(16)
     };
 }
 
