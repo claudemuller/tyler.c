@@ -180,31 +180,60 @@ run(Engine *engine)
 	render(engine);
     }
 }
+NK_API int nk_consume_keyboard(struct nk_context *ctx)
+{
+    struct nk_window *iter;
+    NK_ASSERT(ctx);
+    if (!ctx) return 0;
+    iter = ctx->begin;
+    while (iter){
+        if (iter->edit.active & NK_EDIT_ACTIVE)
+            return 1;
+        iter = iter->next;
+    }
+    return 0;
+}
 
+NK_API int nk_consume_mouse(struct nk_context *ctx)
+{
+    static unsigned sdl_previous_button_state = 0;
+    static int nk_consume_mouse_at_button_press = 0;
+    unsigned sdl_current_button_state = SDL_GetMouseState(NULL, NULL);
+    if (sdl_previous_button_state == 0 && sdl_current_button_state != 0){
+        nk_consume_mouse_at_button_press = nk_item_is_any_active(ctx);
+    }
+    sdl_previous_button_state = sdl_current_button_state;
+    if (sdl_current_button_state != 0)
+        return nk_consume_mouse_at_button_press;
+    else
+        return nk_item_is_any_active(ctx);
+}
 void
 process_input(Engine *engine)
 {
     SDL_Event event;
     nk_input_begin(engine->ctx);
-    if (SDL_PollEvent(&event)) {
-	switch (event.type) {
-	    case SDL_QUIT:
+
+    while (SDL_PollEvent(&event)) {
+	if (event.type == SDL_QUIT) {
 		engine->is_running = false;
 		return;
-	    case SDL_KEYDOWN:
-		if (event.key.keysym.sym == SDLK_ESCAPE) {
-		    engine->is_running = false;
-		}
-		// eventBus->EmitEvent<KeyPressedEvent>(event.key.keysym.sym);
-	    case SDL_MOUSEBUTTONDOWN:
+	}
+
+	nk_sdl_handle_event(&event);
+	if (nk_consume_keyboard(engine->ctx) == 0){
+	    if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_t)
+		printf("pressed T\n");
+	}
+
+	if (nk_consume_mouse(engine->ctx) == 0){
+	    if (event.type == SDL_MOUSEBUTTONDOWN) {
 		mouse_down = true;
 		mouse_event = event;
-		break;
-	    case SDL_MOUSEBUTTONUP:
-		mouse_down = false;
-		break;
+	    }
+	    if (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON_LMASK))
+		printf("camera moving\n");
 	}
-	nk_sdl_handle_event(&event);
     }
     nk_input_end(engine->ctx);
 }
