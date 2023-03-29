@@ -1,20 +1,34 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "logger.h"
 
-void
-log_info(const char *msg)
+const bool LOG = false;
+
+char
+*log_info(char *msg)
 {
-    printf("ℹ️ %s\n", msg);
+    // printf("ℹ️ %s\n", msg);
+    return msg;
+}
+
+char
+*log_warn(char *msg)
+{
+    // printf("⚠️ %s\n", msg);
+    return msg;
+}
+
+char
+*log_err(char *msg, const char *err)
+{
+    // printf("☠️ %s: %s\n", msg, err);
+    return msg;
 }
 
 void
-log_warn(const char *msg)
+_log(const char *msg)
 {
-    printf("⚠️ %s\n", msg);
+    if (LOG)
+	printf("%s\n", msg);
 }
 
-void
-log_err(const char *msg)
-{
-    printf("☠️ %s\n", msg);
-}

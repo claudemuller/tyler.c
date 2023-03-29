@@ -1,8 +1,11 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-void log_info(const char *msg);
-void log_err(const char *msg);
+char *log_info(char *msg);
+char *log_warn(char *msg);
+char *log_err(char *msg, const char *err);
+
+void _log(const char *msg);
 
 #endif // LOGGER_H
 

@@ -1,11 +1,10 @@
 UNAME_S := $(shell uname -s)
-CC=g++
-CFLAGS=-Wall -Wfatal-errors -std=c++17
+CC=gcc
+CFLAGS=-Wall -Wfatal-errors -std=c11
 INCS=-I./libs/
 LIBS=
 LFLAGS=-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -llua
-SRC=./src/*.c \
-	./libs/imgui/*.cpp
+SRC=./src/*.c
 BIN=tyler
 
 # Mac Stuff
