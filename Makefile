@@ -1,6 +1,7 @@
 UNAME_S := $(shell uname -s)
 CC=gcc
 CFLAGS=-Wall -Wfatal-errors -std=c11
+ASANFLAGS = -fsanitize=address -fno-common -fno-omit-frame-pointer
 INCS=-I./libs/
 LIBS=
 LFLAGS=-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -llua
@@ -19,7 +20,12 @@ build:
 	$(CC) $(SRC) $(CFLAGS) $(INCS) $(LIBS) $(LFLAGS) -o $(BIN)
 
 debug:
-	$(CC) -g $(SRC) $(CFLAGS) $(INCS) $(LIBS) $(LFLAGS) -o debug
+	@$(CC) -g $(SRC) $(CFLAGS) $(INCS) $(LIBS) $(LFLAGS) -o debug
+
+memcheck:
+	@$(CC) $(SRC) $(ASANFLAGS) $(CFLAGS) $(INCS) $(LIBS) $(LFLAGS) -o memcheck.out
+	@./memcheck.out
+	@echo "Memory check passed"
 
 run:
 	./$(BIN)
