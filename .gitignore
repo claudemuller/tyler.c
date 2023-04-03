@@ -2,4 +2,4 @@ tyler
 compile_commands.json
 .cache
 debug*
-memcheck.out
+memcheck.out*
