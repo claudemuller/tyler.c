@@ -6,34 +6,13 @@
 
 const bool LOG = true;
 
-void
-log_info(char *msg)
-{
-    _log(_build_msg("ℹ️ ", msg));
-}
-
-void
-log_warn(char *msg)
-{
-    _log(_build_msg("⚠️ ", msg));
-}
-
-void
-log_err(char *msg, const char *err)
-{
-    char *str = _build_msg("☠️ ", msg);
-    _log(_build_msg(str, err));
-}
-
-void
-_log(const char *msg)
+static void log(const char *msg)
 {
     if (LOG)
 	printf("%s\n", msg);
 }
 
-char
-*_build_msg(const char *emoji, const char *msg)
+static char *build_msg(const char *emoji, const char *msg)
 {
     size_t emoji_len = strlen(emoji);
     size_t str_len = strlen(msg);
@@ -45,3 +24,18 @@ char
     return log_msg;
 }
 
+void log_info(char *msg)
+{
+    log(build_msg("ℹ️ ", msg));
+}
+
+void log_warn(char *msg)
+{
+    log(build_msg("⚠️ ", msg));
+}
+
+void log_err(char *msg, const char *err)
+{
+    char *str = build_msg("☠️ ", msg);
+    log(build_msg(str, err));
+}

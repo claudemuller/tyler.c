@@ -2,10 +2,10 @@
 #include <stdbool.h>
 #include "engine.h"
 
-int main(int argc, char* argv[]) {
+int main(void) {
 	bool debug = true;
 
-	Engine engine;
+	engine_t engine;
 
 	init(&engine, debug);
 	run(&engine);

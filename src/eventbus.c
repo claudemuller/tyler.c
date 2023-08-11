@@ -3,30 +3,39 @@
 #include "eventbus.h"
 #include "logger.h"
 
-eventbus_t
-init_eventbus()
+eventbus_t init_eventbus(void)
 {
-    subscriber_t subscribers[2];
-    printf("%zu\n", sizeof(subscribers));
- //    if (!subscribers) {
-	// log_err("failed to malloc subscribers space");
+ //    subscriber_t *subscribers = malloc(sizeof(subscriber_t) * 2);
+ //    if (subscribers == NULL) {
+	// log_err("failed to malloc subscribers", "malloc error");
  //    }
+
+ //    eventbus_t eventbus = (eventbus_t){
+	// .subscribers = subscribers,
+ //    };
+ //    malloc(sizeof(eventbus_t) + sizeof(subscriber_t) * 2);
+ //    if (eventbus != NULL) {
+	// log_err("failed to malloc eventbus", "malloc error");
+ //    }
+
     return (eventbus_t){
-	// .subscribers = malloc(16)
+	.num_subs = 0,
     };
 }
 
-void
-subscribe(eventbus_t eventbus, const event_type_t type, void (*func)(void))
+void subscribe(eventbus_t *eventbus, const event_type_t type, void (*func)(event_t))
 {
     subscriber_t sub = {
-	.type = type,
+	.event_type = type,
 	.func = func
     };
-    eventbus.subscribers = func;
+    eventbus->subscribers[eventbus->num_subs++] = sub;
 }
 
-void
-emit_event(eventbus_t eventbus, const event_type_t type) {
-    eventbus.subscribers();
+void emit_event(eventbus_t *eventbus, const event_t ev) {
+    for (size_t i = 0; i < eventbus->num_subs; i++) {
+	if (eventbus->subscribers[i].event_type == ev.type) {
+	    eventbus->subscribers[i].func(ev);
+	}
+    }
 }

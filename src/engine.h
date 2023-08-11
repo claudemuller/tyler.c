@@ -8,36 +8,37 @@
 typedef struct {
 	int width;
 	int height;
-	int cols;
-	int rows;
+	size_t cols;
+	size_t rows;
 	char filename[256];
-} Tilemap;
+} tilemap_t;
 
 typedef struct {
-	Tilemap tilemap;
+	tilemap_t tilemap;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	struct nk_context *ctx;
 	struct nk_colorf bg;
 
+	bool debug;
 	int window_width;
 	int window_height;
 
 	int millisecs_previous_frame;
 	bool is_running;
-} Engine;
+} engine_t;
 
-void init(Engine *engine, const bool debug);
-void setup(Engine *engine);
-void run(Engine *engine);
-void process_input(Engine *engine);
-void update(Engine *engine);
-void render(Engine *engine);
-void cleanup(Engine *engine);
+void init(engine_t *engine, const bool debug);
+void setup(engine_t *engine);
+void run(engine_t *engine);
+void process_input(engine_t *engine);
+void update(engine_t *engine);
+void render(engine_t *engine);
+void cleanup(engine_t *engine);
 
-void draw_tile_grid(Engine *engine);
-void draw_ui(Engine *engine);
+void draw_tile_grid(engine_t *engine);
+void draw_ui(engine_t *engine);
 void save_tile_to_render(const int x, const int y);
-void on_mouse_down(Engine *engine, SDL_Event e);
+void on_mouse_down(engine_t *engine, SDL_Event e);
 
 #endif // ENGINE_H
