@@ -2,10 +2,12 @@
 #include <stdbool.h>
 #include "engine.h"
 
+const bool LOG = true;
+
+engine_t engine;
+
 int main(void) {
 	bool debug = true;
-
-	engine_t engine;
 
 	init(&engine, debug);
 	run(&engine);

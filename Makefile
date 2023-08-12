@@ -8,6 +8,7 @@ CFLAGS += -pedantic
 # CFLAGS += -Werror
 CFLAGS += -Wmissing-declarations
 CFLAGS += -I./libs/
+CFLAGS += libs/tinyfiledialogs/tinyfiledialogs.c
 ASANFLAGS=-fsanitize=address -fno-common -fno-omit-frame-pointer
 
 ifeq ($(shell uname), Linux)

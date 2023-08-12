@@ -39,6 +39,5 @@ void cleanup(engine_t *engine);
 void draw_tile_grid(engine_t *engine);
 void draw_ui(engine_t *engine);
 void save_tile_to_render(const int x, const int y);
-void on_mouse_down(engine_t *engine, SDL_Event e);
 
 #endif // ENGINE_H
