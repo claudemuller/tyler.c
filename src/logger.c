@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include "logger.h"
+#include "utils.h"
 
 extern bool LOG;
 
