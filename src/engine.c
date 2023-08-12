@@ -229,6 +229,7 @@ void process_input(engine_t *engine)
 				};
 				emit_event(&eventbus, ev);
 			}
+			continue;
 		}
 
 		// SDL Mouse click i.e. everywhere else
